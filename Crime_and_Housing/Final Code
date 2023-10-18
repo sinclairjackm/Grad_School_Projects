@@ -1,0 +1,202 @@
+#All Libraries that we will need for this cleanup
+library(eeptools)
+library(plyr)
+library(RCurl)
+library(psych)
+library(tidyr)
+library(dplyr)
+
+#RCurl helps R get around issues with https urls. This is so we can pull the data from the github repository rather than local files.
+url_FBI <- getURL("https://github.gatech.edu/raw/MGT-6203-Summer-2022-Canvas/Team-38/main/Do%20Violent%20and%20Non-violent%20Crimes%20Predict%20Housing%20Prices/Data/FBI_crime_reports_2019.csv?token=GHSAT0AAAAAAAACKFZ7FS25IYZ5TD5XXKFWYXFVBOA")
+url_Zillow <- getURL("https://github.gatech.edu/raw/MGT-6203-Summer-2022-Canvas/Team-38/main/Do%20Violent%20and%20Non-violent%20Crimes%20Predict%20Housing%20Prices/Data/Zillow_City_zhvi_2019.csv?token=GHSAT0AAAAAAAACKFZ7DE7GC7DZYAM2AGSAYXFVA2Q")
+FBI <- read.csv(text = url_FBI)
+Zillow <- read.csv(text = url_Zillow)
+#Now we have loaded in our datasets
+head(FBI)
+head(Zillow)
+
+#Now that the data has been imported into R, we will create an extra column in the Zillow set that has the mean of ZHVI for that city in 2019.
+#Values that have NA will not be calculated in the mean and the dividend will adjust as such.
+Zillow$ZHVI.Year.Average <- rowMeans(Zillow[,9:20], na.rm=TRUE)
+head(Zillow)
+
+#Now we want to rename the column for the cities in the Zillow set so that we can join in with the FBI set.
+names(Zillow)[names(Zillow) == 'RegionName'] <- 'City'
+head(Zillow)
+
+#Now we want to expand the state names in the Zillow set so that we can join in with the FBI set.
+Zillow$State <- state.name[match(Zillow$State, state.abb)]
+head(Zillow)
+
+#Now we want to change the FBI all uppercase state names to match the case format of the Zillow set.
+#First, we convert them from all uppercase to all lowercase.
+FBI$State <- tolower(FBI$State)
+#Then, we define a function that will convert the first letter to uppercase.
+firstup <- function(x) {
+	substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+	x
+	}
+#Then, we apply the function to the column.
+FBI$State <- firstup(FBI$State)
+head(FBI)
+
+#Now we want to merge the two data sets.
+merged <- merge(FBI, Zillow)
+head(merged)
+
+#Now we select the columns we want
+dataset <- subset(merged, select=c("City", "State", "Population", "Violent.crime", "Property.crime", "ZHVI.Year.Average"))
+head(dataset)
+
+#Now that we have our chosen columns, we make new columns for our violent and non-violent crime rates.
+#But first, we need to convert the three columns to numeric values.
+dataset$Violent.crime <- decomma(dataset$Violent.crime)
+dataset$Property.crime <- decomma(dataset$Property.crime)
+dataset$Population <- decomma(dataset$Population)
+
+#Now we can create our new rate columns.
+dataset$Violent.Crime.Rate <- dataset$Violent.crime / dataset$Population
+dataset$Non.Violent.Crime.Rate <- dataset$Property.crime / dataset$Population
+head(dataset)
+
+#Now we want to run the same cleanup process to our datasets from Zillow of the other home types.
+url_Zillow_condo <- getURL("https://github.gatech.edu/raw/MGT-6203-Summer-2022-Canvas/Team-38/main/Do%20Violent%20and%20Non-violent%20Crimes%20Predict%20Housing%20Prices/Data/zhvi_condo_2019.csv?token=GHSAT0AAAAAAAACKFZ7CQC2OFI7NXWJSPT2YXFVCGQ")
+Zillow_condo <- read.csv(text = url_Zillow_condo)
+url_Zillow_1bd <- getURL("https://github.gatech.edu/raw/MGT-6203-Summer-2022-Canvas/Team-38/main/Do%20Violent%20and%20Non-violent%20Crimes%20Predict%20Housing%20Prices/Data/zhvi_bdrmcnt_1_2019.csv?token=GHSAT0AAAAAAAACKFZ7Q57W4J5564J7UCNKYXFVCDQ")
+Zillow_1bd <- read.csv(text = url_Zillow_1bd)
+url_Zillow_2bd <- getURL("https://github.gatech.edu/raw/MGT-6203-Summer-2022-Canvas/Team-38/main/Do%20Violent%20and%20Non-violent%20Crimes%20Predict%20Housing%20Prices/Data/zhvi_bdrmcnt_2_2019.csv?token=GHSAT0AAAAAAAACKFZ7XAGIRXWDRJU5RKHEYXFVA3Q")
+Zillow_2bd <- read.csv(text = url_Zillow_2bd)
+url_Zillow_3bd <- getURL("https://github.gatech.edu/raw/MGT-6203-Summer-2022-Canvas/Team-38/main/Do%20Violent%20and%20Non-violent%20Crimes%20Predict%20Housing%20Prices/Data/zhvi_bdrmcnt_3_2019.csv?token=GHSAT0AAAAAAAACKFZ7F5ZLK3WZCSNAII6YYXFVCGA")
+Zillow_3bd <- read.csv(text = url_Zillow_3bd)
+Zillow_condo$ZHVI.Condo.Average <- rowMeans(Zillow_condo[,9:20], na.rm=TRUE)
+Zillow_1bd$ZHVI.1bd.Average <- rowMeans(Zillow_1bd[,9:20], na.rm=TRUE)
+Zillow_2bd$ZHVI.2bd.Average <- rowMeans(Zillow_2bd[,9:20], na.rm=TRUE)
+Zillow_3bd$ZHVI.3bd.Average <- rowMeans(Zillow_3bd[,9:20], na.rm=TRUE)
+names(Zillow_condo)[names(Zillow_condo) == 'RegionName'] <- 'City'
+names(Zillow_1bd)[names(Zillow_1bd) == 'RegionName'] <- 'City'
+names(Zillow_2bd)[names(Zillow_2bd) == 'RegionName'] <- 'City'
+names(Zillow_3bd)[names(Zillow_3bd) == 'RegionName'] <- 'City'
+Zillow_condo$State <- state.name[match(Zillow_condo$State, state.abb)]
+Zillow_1bd$State <- state.name[match(Zillow_1bd$State, state.abb)]
+Zillow_2bd$State <- state.name[match(Zillow_2bd$State, state.abb)]
+Zillow_3bd$State <- state.name[match(Zillow_3bd$State, state.abb)]
+merged_condo <- merge(FBI, Zillow_condo)
+merged_1bd <- merge(FBI, Zillow_1bd)
+merged_2bd <- merge(FBI, Zillow_2bd)
+merged_3bd <- merge(FBI, Zillow_3bd)
+dataset_condo <- subset(merged_condo, select=c("City", "State", "Population", "Violent.crime", "Property.crime", "ZHVI.Condo.Average"))
+dataset_1bd <- subset(merged_1bd, select=c("City", "State", "Population", "Violent.crime", "Property.crime", "ZHVI.1bd.Average"))
+dataset_2bd <- subset(merged_2bd, select=c("City", "State", "Population", "Violent.crime", "Property.crime", "ZHVI.2bd.Average"))
+dataset_3bd <- subset(merged_3bd, select=c("City", "State", "Population", "Violent.crime", "Property.crime", "ZHVI.3bd.Average"))
+dataset_condo$Violent.crime <- decomma(dataset_condo$Violent.crime)
+dataset_condo$Property.crime <- decomma(dataset_condo$Property.crime)
+dataset_condo$Population <- decomma(dataset_condo$Population)
+dataset_1bd$Violent.crime <- decomma(dataset_1bd$Violent.crime)
+dataset_1bd$Property.crime <- decomma(dataset_1bd$Property.crime)
+dataset_1bd$Population <- decomma(dataset_1bd$Population)
+dataset_2bd$Violent.crime <- decomma(dataset_2bd$Violent.crime)
+dataset_2bd$Property.crime <- decomma(dataset_2bd$Property.crime)
+dataset_2bd$Population <- decomma(dataset_2bd$Population)
+dataset_3bd$Violent.crime <- decomma(dataset_3bd$Violent.crime)
+dataset_3bd$Property.crime <- decomma(dataset_3bd$Property.crime)
+dataset_3bd$Population <- decomma(dataset_3bd$Population)
+
+#Now that all of the different hometype datasets have been cleaned up, we can join them to our first dataset.
+dataset_full <- join(dataset, dataset_condo)
+dataset_full <- join(dataset_full, dataset_1bd)
+dataset_full <- join(dataset_full, dataset_2bd)
+dataset_full <- join(dataset_full, dataset_3bd)
+head(dataset_full, 10)
+
+#Now that we have all of our hometype ZHVI averages, we want to create our violent and non-violent crime rates.
+dataset_full$Violent.Crime.Rate <- (dataset_full$Violent.crime / dataset_full$Population)*100000
+dataset_full$Non.Violent.Crime.Rate <- (dataset_full$Property.crime / dataset_full$Population)*100000
+head(dataset_full, 10)
+
+#After we viewed distributions for each column, we decided we only needed to remove outliers from the rates since the log transformations of the ZHVI values are close to normal distribution.
+dataset_no_outliers1 <- dataset_full %>%
+ filter(Violent.Crime.Rate < quantile(Violent.Crime.Rate, 0.99, na.rm=TRUE) &
+        (Violent.Crime.Rate > quantile(Violent.Crime.Rate, 0.01, na.rm=TRUE) | is.na(Violent.Crime.Rate)))
+dataset_no_outliers <- dataset_no_outliers1 %>%
+ filter(Non.Violent.Crime.Rate < quantile(Non.Violent.Crime.Rate, 0.99, na.rm=TRUE) &
+        (Non.Violent.Crime.Rate > quantile(Non.Violent.Crime.Rate, 0.01, na.rm=TRUE) | is.na(Non.Violent.Crime.Rate)))
+
+#Now we want to create log transformations of all our ZHVI averages and our crime rates for future models.
+dataset_no_outliers <- mutate(dataset_no_outliers, Log.Violent.Crime.Rate = log(1+Violent.Crime.Rate))
+dataset_no_outliers <- mutate(dataset_no_outliers, Log.Non.Violent.Crime.Rate = log(1+Non.Violent.Crime.Rate))
+dataset_no_outliers <- mutate(dataset_no_outliers, Log.ZHVI.Year.Average = log(1+ZHVI.Year.Average))
+dataset_no_outliers <- mutate(dataset_no_outliers, Log.ZHVI.Condo.Average = log(1+ZHVI.Condo.Average))
+dataset_no_outliers <- mutate(dataset_no_outliers, Log.ZHVI.1bd.Average = log(1+ZHVI.1bd.Average))
+dataset_no_outliers <- mutate(dataset_no_outliers, Log.ZHVI.2bd.Average = log(1+ZHVI.2bd.Average))
+dataset_no_outliers <- mutate(dataset_no_outliers, Log.ZHVI.3bd.Average = log(1+ZHVI.3bd.Average))
+
+
+#Below we have a way to view the distribution, pearson constant, and scatter plots of our ZHVI Averages and crime rates.
+df <- subset(dataset_no_outliers, select=c("Log.ZHVI.Year.Average","Violent.Crime.Rate","Non.Violent.Crime.Rate"))
+head(df)
+pairs.panels(df,
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+
+
+
+
+#Here we have a dataset ready for regression analysis!
+write.csv(dataset_no_outliers,"C:\\Users\\jack\\Documents\\GitHub\\Team-38\\Do Violent and Non-violent Crimes Predict Housing Prices\\Data\\dataset_no_rate_outliers.csv", row.names = TRUE)
+
+
+
+
+
+#Now that we have our cleaned and prepped dataset, we can run analyses on it.
+#First we start by looking at which type of model will have the best adjusuted R squared, AIC, and BIC
+lm_linlin  <- lm(ZHVI.Year.Average~Violent.Crime.Rate +Non.Violent.Crime.Rate, data = dataset_no_outliers)
+lm_linlog <- lm(ZHVI.Year.Average~Log.Violent.Crime.Rate+Log.Non.Violent.Crime.Rate, data = dataset_no_outliers)
+lm_logline <- lm(Log.ZHVI.Year.Average~Violent.Crime.Rate+Non.Violent.Crime.Rate, dataset_no_outliers)
+lm_loglog <- lm(Log.ZHVI.Year.Average~Log.Violent.Crime.Rate+ Log.Non.Violent.Crime.Rate, data = dataset_no_outliers)
+summary(lm_linlin)
+summary(lm_linlog)
+summary(lm_logline)
+summary(lm_loglog)
+AIC(lm_loglog_all)
+AIC(lm_linlin)
+AIC(lm_linlog)
+AIC(lm_logline)
+BIC(lm_loglog_all)
+BIC(lm_linlin)
+BIC(lm_linlog)
+BIC(lm_logline)
+#According to the results, we see that the loglog model will work the best with our dataset.
+
+#Now that we know we want to use the loglog model, we will run it with all of the different housing types to see if our findings are consistent.
+lm_loglog_all <- lm(Log.ZHVI.Year.Average~Log.Violent.Crime.Rate+Log.Non.Violent.Crime.Rate, dataset_no_outliers)
+lm_loglog_condo <- lm(Log.ZHVI.Condo.Average~Log.Violent.Crime.Rate+Log.Non.Violent.Crime.Rate, dataset_no_outliers)
+lm_loglog_1bd <- lm(Log.ZHVI.1bd.Average~Log.Violent.Crime.Rate+Log.Non.Violent.Crime.Rate, dataset_no_outliers)
+lm_loglog_2bd <- lm(Log.ZHVI.2bd.Average~Log.Violent.Crime.Rate+Log.Non.Violent.Crime.Rate, dataset_no_outliers)
+lm_loglog_3bd <- lm(Log.ZHVI.3bd.Average~Log.Violent.Crime.Rate+Log.Non.Violent.Crime.Rate, dataset_no_outliers)
+summary(lm_loglog_all)
+summary(lm_loglog_condo)
+summary(lm_loglog_1bd)
+summary(lm_loglog_2bd)
+summary(lm_loglog_3bd)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
